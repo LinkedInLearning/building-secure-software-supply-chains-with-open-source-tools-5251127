@@ -1,4 +1,4 @@
-name: Trivy Juice Shop Image - Dependency Scan
+name: Trivy Juice Shop Dependency Scan
 
 on:
   workflow_dispatch:
