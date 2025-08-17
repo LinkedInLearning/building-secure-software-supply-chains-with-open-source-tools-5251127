@@ -1,4 +1,4 @@
-name: Trivy Juice Shop Dependency Scan
+name: Trivy Juice Shop Dependency Scan test
 
 on:
   workflow_dispatch:
