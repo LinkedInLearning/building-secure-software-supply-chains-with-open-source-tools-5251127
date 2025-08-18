@@ -29,7 +29,9 @@ jobs:
           # omit output-file to avoid writing a file
 
       # Optional: repo secrets scan (prints to logs; no files)
-      - name: Gitleaks (secrets) on repo
+      - name: Gitleaks (secrets) on repo (no artifact)
         uses: gitleaks/gitleaks-action@v2
-        with:
-          args: --no-git -v
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+          GITLEAKS_ENABLE_SUMMARY: "false"
