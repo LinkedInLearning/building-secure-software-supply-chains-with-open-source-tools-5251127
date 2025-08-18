@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Image vulnerability scan (prints to logs; no files)
       - name: Trivy scan of OWASP Juice Shop image
