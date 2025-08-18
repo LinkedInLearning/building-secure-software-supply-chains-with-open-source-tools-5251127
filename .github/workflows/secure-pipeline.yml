@@ -1,0 +1,35 @@
+name: Security Pipeline — OWASP Juice Shop
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Image vulnerability scan (prints to logs; no files)
+      - name: Trivy scan of OWASP Juice Shop image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: docker.io/bkimminich/juice-shop:latest
+          ignore-unfixed: true
+          # omit format/output -> human-readable logs only
+
+      # SBOM for the image (no artifact, no output file)
+      - name: Syft SBOM for OWASP Juice Shop image
+        uses: anchore/sbom-action@v0.20.5
+        with:
+          image: docker.io/bkimminich/juice-shop:latest
+          upload-artifact: false    # don’t save an artifact
+          # omit output-file to avoid writing a file
+
+      # Optional: repo secrets scan (prints to logs; no files)
+      - name: Gitleaks (secrets) on repo
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: --no-git -v
