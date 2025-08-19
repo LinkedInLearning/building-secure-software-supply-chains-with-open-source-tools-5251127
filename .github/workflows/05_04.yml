@@ -118,14 +118,6 @@ jobs:
           fail-build: false                            # keep demo green
           severity-cutoff: high
 
-      # Upload SARIF to GitHub Security
-      - name: Upload SARIF to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: grype-from-sbom.sarif
-          category: grype-sbom
-          wait-for-processing: true
-
       # 2b) (optional) Grype again → JSON file + artifact
       - name: Grype scan of SBOM → JSON
         uses: anchore/scan-action@v6
@@ -146,19 +138,32 @@ jobs:
   summary:
     name: Security Summary
     runs-on: ubuntu-latest
-    needs: [sca-trivy-fs, image-scan-trivy, secrets-gitleaks, sbom-scan]
+    needs:
+      - sca-trivy-fs
+      - image-scan-trivy
+      - secrets-gitleaks
+      - sbom-scan
     if: always()
     steps:
       - name: Write job summary
         run: |
           {
-            echo "# Parallel Security Checks — Summary"
+            echo "# Parallel Security Checks — Summary (05_04)"
             echo
             echo "| Job | Status |"
             echo "|---|---|"
             echo "| SCA (Dependencies only) | ${{ needs.sca-trivy-fs.result }} |"
             echo "| Container Image Scan (Juice Shop) | ${{ needs.image-scan-trivy.result }} |"
             echo "| Secrets Scan (Gitleaks) | ${{ needs.secrets-gitleaks.result }} |"
+            echo "| SBOM (Syft) + Grype | ${{ needs.sbom-and-grype-native.result }} |"
             echo
-            echo "_Open each job’s log for details._"
+            echo "Artifacts:"
+            echo "- sbom-juice-shop-source-cyclonedx (CycloneDX JSON)"
+            echo "- sbom-juice-shop-source-spdx (SPDX JSON)  # if you kept this step"
+            echo "- grype-from-sbom-json (Grype findings as JSON)"
+            echo "- trivy-fs-sca-json (SCA JSON report)"
+            echo "- trivy-image-os-json (Image OS JSON report)"
+            echo "- gitleaks-results.sarif (from Gitleaks action)"
+            echo
+            echo "_Open each job’s logs for details._"
           } >> "$GITHUB_STEP_SUMMARY"
