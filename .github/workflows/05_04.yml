@@ -112,7 +112,7 @@ jobs:
       - name: Grype scan of SBOM → SARIF
         uses: anchore/scan-action@v6
         with:
-          sbom: juice-shop-src.sbom.cdx.json
+          sbom: juice-shop-image.sbom.cdx.json
           output-format: sarif
           output-file: grype-from-sbom.sarif           # explicit file path
           fail-build: false                            # keep demo green
