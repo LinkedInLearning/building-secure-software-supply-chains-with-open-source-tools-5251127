@@ -140,7 +140,7 @@ jobs:
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: grype-image-from-sbom.sarif
+          sarif_file: grype-from-sbom.sarif 
           category: grype-sbom
           
   summary:
