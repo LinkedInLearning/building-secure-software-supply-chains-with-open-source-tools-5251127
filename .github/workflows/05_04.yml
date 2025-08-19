@@ -122,7 +122,7 @@ jobs:
       - name: Grype scan of SBOM → JSON
         uses: anchore/scan-action@v6
         with:
-          sbom: juice-shop-src.sbom.cdx.json
+          sbom: juice-shop-image.sbom.cdx.json
           output-format: json
           output-file: grype-scan-from-sbom.json
           fail-build: false
