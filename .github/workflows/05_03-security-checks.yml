@@ -55,3 +55,23 @@ jobs:
           args: detect --source . --no-banner --redact
         # default fails on findings; allow pass with:
         # continue-on-error: true
+  
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [sca-trivy-fs, image-scan-trivy, secrets-gitleaks]
+    if: always()
+    steps:
+      - name: Write job summary
+        run: |
+          {
+            echo "# Parallel Security Checks — Summary"
+            echo
+            echo "| Job | Status |"
+            echo "|---|---|"
+            echo "| SCA (Dependencies only) | ${{ needs.sca-trivy-fs.result }} |"
+            echo "| Container Image Scan (Juice Shop) | ${{ needs.image-scan-trivy.result }} |"
+            echo "| Secrets Scan (Gitleaks) | ${{ needs.secrets-gitleaks.result }} |"
+            echo
+            echo "_Open each job’s log for details._"
+          } >> "$GITHUB_STEP_SUMMARY"
