@@ -32,11 +32,13 @@ jobs:
         uses: aquasecurity/trivy-action@0.32.0
         with:
           scan-type: 'fs'
-          scan-ref: '.'
+          scan-ref: './juice-shop-src'
+          scanners: 'vuln'
           vuln-type: 'library'     # dependency vulns only (SCA)
           format: 'table'
           exit-code: '0'           # flip to '1' to gate on HIGH/CRITICAL
           severity: 'HIGH,CRITICAL'
+          list-all-pkgs: true
           ignore-unfixed: true
 
 
