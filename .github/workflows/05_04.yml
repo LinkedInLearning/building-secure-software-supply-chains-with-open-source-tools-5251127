@@ -88,9 +88,8 @@ jobs:
 
   # --- NEW: native Syft + Grype job (no docker run) ---
   sbom-scan:
-    name: SBOM + Scan (Syft & Grype Actions)
+    name: SBOM + Scan (Syft & Grype)
     runs-on: ubuntu-latest
-    needs: setup
     steps:
       - name: Checkout OWASP Juice Shop source
         uses: actions/checkout@v4
@@ -99,38 +98,44 @@ jobs:
           path: juice-shop-src
           fetch-depth: 1
 
-      # Syft via official action: generate CycloneDX JSON SBOM
+      # 1) Syft via official action → CycloneDX SBOM file + artifact
       - name: Generate SBOM (CycloneDX) with Syft
         uses: anchore/sbom-action@v0
         with:
           path: juice-shop-src
-          format: cyclonedx-json               # default is SPDX; we choose CycloneDX
-          output-file: juice-shop-src.sbom.cdx.json
-          upload-artifact: true                # uploads artifact automatically
+          format: cyclonedx-json
+          output-file: juice-shop-src.sbom.cdx.json    # explicit file path
+          upload-artifact: true
           artifact-name: sbom-juice-shop-source-cyclonedx
 
-      # Grype via official action: scan the SBOM and produce SARIF & JSON
-      - name: Grype scan of SBOM → SARIF + JSON
-        id: grype
-        uses: anchore/scan-action@v3
+      # 2a) Grype via official action → SARIF file
+      - name: Grype scan of SBOM → SARIF
+        uses: anchore/scan-action@v6
         with:
-          sbom: juice-shop-src.sbom.cdx.json   # scan the SBOM we just wrote
-          output-format: sarif                 # primary output for GitHub Security
-          fail-build: false                    # don’t fail the job (great for demos)
-          severity-cutoff: high                # adjust as you like
+          sbom: juice-shop-src.sbom.cdx.json
+          output-format: sarif
+          output-file: grype-from-sbom.sarif           # explicit file path
+          fail-build: false                            # keep demo green
+          severity-cutoff: high
 
-      # Upload SARIF to Code Scanning
+      # Upload SARIF to GitHub Security
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ${{ steps.grype.outputs.sarif }}
+          sarif_file: grype-from-sbom.sarif
           category: grype-sbom
+          wait-for-processing: true
 
-      # Also export JSON results as an artifact for learners
-      - name: Save Grype JSON report
-        if: always()
-        run: |
-          echo '${{ steps.grype.outputs.json }}' > grype-from-sbom.json
+      # 2b) (optional) Grype again → JSON file + artifact (nice for learners)
+      - name: Grype scan of SBOM → JSON
+        uses: anchore/scan-action@v6
+        with:
+          sbom: juice-shop-src.sbom.cdx.json
+          output-format: json
+          output-file: grype-from-sbom.json
+          fail-build: false
+          severity-cutoff: high
+
       - name: Upload Grype JSON artifact
         uses: actions/upload-artifact@v4
         with:
