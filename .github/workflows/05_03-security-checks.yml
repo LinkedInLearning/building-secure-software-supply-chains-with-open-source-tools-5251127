@@ -24,9 +24,16 @@ jobs:
           path: juice-shop-src
           fetch-depth: 1
       
+      - name: Setup Node (for lockfile generation only)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      
       - name: Generate lockfile for SCA
         working-directory: juice-shop-src
-        run: npm install --package-lock-only
+        run: |
+          npm config set ignore-scripts true
+          npm install --package-lock-only
       
       - name: Trivy FS
         uses: aquasecurity/trivy-action@0.32.0
