@@ -2,42 +2,56 @@ name: 05_03 Parallel Security Checks
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
   sca-trivy-fs:
     name: SCA (Dependencies only)
     runs-on: ubuntu-latest
+    needs: setup
     steps:
       - uses: actions/checkout@v4
       - uses: aquasecurity/trivy-action@0.32.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          vuln-type: 'library'       # dependency vulns only (SCA)
+          vuln-type: 'library'     # dependency vulns only (SCA)
           format: 'table'
-          exit-code: '0'             # flip to '1' to gate on HIGH/CRITICAL
+          exit-code: '0'           # flip to '1' to gate on HIGH/CRITICAL
           severity: 'HIGH,CRITICAL'
           ignore-unfixed: true
+
 
   image-scan-trivy:
     name: Container Image Scan (Juice Shop)
     runs-on: ubuntu-latest
+    needs: setup
     steps:
       - name: Scan public image
         uses: aquasecurity/trivy-action@0.32.0
         with:
           image-ref: 'bkimminich/juice-shop:latest'
-          vuln-type: 'os,library'    # base image + app deps
+          vuln-type: 'os,library'  # base image + app deps
           format: 'table'
-          exit-code: '0'             # set to '1' to enforce gating
+          exit-code: '0'           # set to '1' to enforce gating
           severity: 'HIGH,CRITICAL'
           ignore-unfixed: true
 
   secrets-gitleaks:
     name: Secrets Scan (Gitleaks)
     runs-on: ubuntu-latest
+    needs: setup
     steps:
       - uses: actions/checkout@v4
       - uses: gitleaks/gitleaks-action@v2
         with:
           args: detect --source . --no-banner --redact
-        # (default behavior fails on findings; add `continue-on-error: true` if you want it to pass)
+        # default fails on findings; allow pass with:
+        # continue-on-error: true
