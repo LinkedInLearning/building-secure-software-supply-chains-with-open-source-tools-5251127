@@ -86,7 +86,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # --- NEW: native Syft + Grype job (no docker run) ---
+
   sbom-scan:
     name: SBOM + Scan (Syft & Grype)
     runs-on: ubuntu-latest
@@ -106,7 +106,7 @@ jobs:
           format: cyclonedx-json
           output-file: juice-shop-src.sbom.cdx.json    # explicit file path
           upload-artifact: true
-          artifact-name: sbom-juice-shop-source-cyclonedx
+          artifact-name: sbom-juice-shop-cyclonedx.json
 
       # 2a) Grype via official action → SARIF file
       - name: Grype scan of SBOM → SARIF
@@ -126,7 +126,7 @@ jobs:
           category: grype-sbom
           wait-for-processing: true
 
-      # 2b) (optional) Grype again → JSON file + artifact (nice for learners)
+      # 2b) (optional) Grype again → JSON file + artifact
       - name: Grype scan of SBOM → JSON
         uses: anchore/scan-action@v6
         with:
