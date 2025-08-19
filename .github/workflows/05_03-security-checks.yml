@@ -24,6 +24,10 @@ jobs:
           path: juice-shop-src
           fetch-depth: 1
       
+      - name: Generate lockfile for SCA
+        working-directory: juice-shop-src
+        run: npm install --package-lock-only
+      
       - name: Trivy FS
         uses: aquasecurity/trivy-action@0.32.0
         with:
@@ -57,12 +61,30 @@ jobs:
     needs: setup
     steps:
       - uses: actions/checkout@v4
-      - uses: gitleaks/gitleaks-action@v2
+
+      # Scan your course repo (expected clean). If leaks are present, this will fail.
+      # That's fine because it's your own repo; if you prefer "always pass" even here,
+      # add: --exit-code 0
+      - name: Gitleaks on course repo (expected clean)
+      # keep it fast and deterministic for demos
+        uses: gitleaks/gitleaks-action@v2
         with:
-          args: detect --source . --no-banner --redact
-        # default fails on findings; allow pass with:
-        # continue-on-error: true
-  
+          args: detect --source . --no-git --no-banner --redact
+
+      # Pull OWASP Juice Shop into a subfolder for a predictable demo with findings
+      - name: Checkout OWASP Juice Shop
+        uses: actions/checkout@v4
+        with:
+          repository: juice-shop/juice-shop
+          path: juice-shop-src
+          fetch-depth: 1
+
+      # Scan Juice Shop and DO NOT fail the pipeline (exit code forced to 0)
+      - name: Gitleaks on Juice Shop (expected hits, do not fail)
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --source juice-shop-src --no-git --no-banner --redact --exit-code 0
+    
   summary:
     name: Security Summary
     runs-on: ubuntu-latest
