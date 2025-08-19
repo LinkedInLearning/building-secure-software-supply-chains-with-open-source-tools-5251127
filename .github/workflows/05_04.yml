@@ -108,16 +108,6 @@ jobs:
           upload-artifact: true
           artifact-name: sbom-juice-shop-image-cyclonedx
 
-      # 2a) Grype via official action → SARIF file
-      - name: Grype scan of SBOM → SARIF
-        uses: anchore/scan-action@v6
-        with:
-          sbom: juice-shop-image.sbom.cdx.json
-          output-format: sarif
-          output-file: grype-from-sbom.sarif           # explicit file path
-          fail-build: false                            # keep demo green
-          severity-cutoff: high
-
       # 2b) (optional) Grype again → JSON file + artifact
       - name: Grype scan of SBOM → JSON
         uses: anchore/scan-action@v6
@@ -137,12 +127,6 @@ jobs:
           path: grype-scan-from-sbom.json
           if-no-files-found: error
       
-      - name: Upload SARIF to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: grype-from-sbom.sarif 
-          category: grype-sbom
-          
   summary:
     name: Security Summary
     runs-on: ubuntu-latest
