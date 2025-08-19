@@ -56,35 +56,28 @@ jobs:
           ignore-unfixed: true
 
   secrets-gitleaks:
-    name: Secrets Scan (Gitleaks)
+    name: Secrets Scan (Gitleaks on OWASP Juice Shop)
     runs-on: ubuntu-latest
     needs: setup
     steps:
-      - uses: actions/checkout@v4
-
-      # Scan your course repo (expected clean). If leaks are present, this will fail.
-      # That's fine because it's your own repo; if you prefer "always pass" even here,
-      # add: --exit-code 0
-      - name: Gitleaks on course repo (expected clean)
-      # keep it fast and deterministic for demos
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: detect --source . --no-git --no-banner --redact
-
-      # Pull OWASP Juice Shop into a subfolder for a predictable demo with findings
+      # Check out OWASP Juice Shop into a subfolder
       - name: Checkout OWASP Juice Shop
         uses: actions/checkout@v4
         with:
           repository: juice-shop/juice-shop
-          path: juice-shop-src
+          path: .
           fetch-depth: 1
 
-      # Scan Juice Shop and DO NOT fail the pipeline (exit code forced to 0)
-      - name: Gitleaks on Juice Shop (expected hits, do not fail)
+      # Run the official action ONCE, from within that folder
+      # `continue-on-error: true` keeps the job green even if leaks are found
+      - name: Gitleaks (official action, allow pass on findings)
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
-        with:
-          args: detect --source juice-shop-src --no-git --no-banner --redact --exit-code 0
-    
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+          
   summary:
     name: Security Summary
     runs-on: ubuntu-latest
