@@ -99,14 +99,14 @@ jobs:
           fetch-depth: 1
 
       # 1) Syft via official action → CycloneDX SBOM file + artifact
-      - name: Generate SBOM (CycloneDX) with Syft
+      - name: Syft SBOM (image → CycloneDX)
         uses: anchore/sbom-action@v0
         with:
-          path: juice-shop-src
+          image: bkimminich/juice-shop:latest
           format: cyclonedx-json
-          output-file: juice-shop-src.sbom.cdx.json    # explicit file path
+          output-file: juice-shop-image.sbom.cdx.json
           upload-artifact: true
-          artifact-name: sbom-juice-shop-cyclonedx.json
+          artifact-name: sbom-juice-shop-image-cyclonedx
 
       # 2a) Grype via official action → SARIF file
       - name: Grype scan of SBOM → SARIF
@@ -118,47 +118,52 @@ jobs:
           fail-build: false                            # keep demo green
           severity-cutoff: high
 
-      # Upload SARIF to GitHub Security
-      - name: Upload SARIF to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: grype-from-sbom.sarif
-          category: grype-sbom
-          wait-for-processing: true
-
       # 2b) (optional) Grype again → JSON file + artifact
       - name: Grype scan of SBOM → JSON
         uses: anchore/scan-action@v6
         with:
           sbom: juice-shop-src.sbom.cdx.json
           output-format: json
-          output-file: grype-from-sbom.json
+          output-file: grype-scan-from-sbom.json
           fail-build: false
           severity-cutoff: high
+          add-cpes-if-none: true
+          by-cve: true
 
       - name: Upload Grype JSON artifact
         uses: actions/upload-artifact@v4
         with:
-          name: grype-from-sbom-json
-          path: grype-from-sbom.json
+          name: grype-scan-from-sbom.json
+          path: grype-scan-from-sbom.json
           if-no-files-found: error
+      
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: grype-image-from-sbom.sarif
+          category: grype-sbom
           
   summary:
     name: Security Summary
     runs-on: ubuntu-latest
-    needs: [sca-trivy-fs, image-scan-trivy, secrets-gitleaks, sbom-scan]
+    needs:
+      - sca-trivy-fs
+      - image-scan-trivy
+      - secrets-gitleaks
+      - sbom-scan
     if: always()
     steps:
       - name: Write job summary
         run: |
           {
-            echo "# Parallel Security Checks — Summary"
+            echo "# Parallel Security Checks — Summary (05_04)"
             echo
             echo "| Job | Status |"
             echo "|---|---|"
             echo "| SCA (Dependencies only) | ${{ needs.sca-trivy-fs.result }} |"
             echo "| Container Image Scan (Juice Shop) | ${{ needs.image-scan-trivy.result }} |"
             echo "| Secrets Scan (Gitleaks) | ${{ needs.secrets-gitleaks.result }} |"
+            echo "| SBOM (Syft) + Grype | ${{ needs.sbom-scan.result }} |"
             echo
-            echo "_Open each job’s log for details._"
+            echo "_Open each job’s logs for details._"
           } >> "$GITHUB_STEP_SUMMARY"
