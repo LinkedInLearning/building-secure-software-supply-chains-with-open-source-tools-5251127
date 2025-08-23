@@ -98,7 +98,6 @@ jobs:
           path: juice-shop-src
           fetch-depth: 1
 
-      # 1) Syft via official action → CycloneDX SBOM file + artifact
       - name: Syft SBOM (image → CycloneDX)
         uses: anchore/sbom-action@v0
         with:
@@ -108,7 +107,6 @@ jobs:
           upload-artifact: true
           artifact-name: sbom-juice-shop-image-cyclonedx
 
-      # 2b) (optional) Grype again → JSON file + artifact
       - name: Grype scan of SBOM → JSON
         uses: anchore/scan-action@v6
         with:
