@@ -1,0 +1,18 @@
+name: Trivy Juice Shop Dependency Scan test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'bkimminich/juice-shop:latest'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'library'
+          severity: 'MEDIUM,HIGH,CRITICAL'

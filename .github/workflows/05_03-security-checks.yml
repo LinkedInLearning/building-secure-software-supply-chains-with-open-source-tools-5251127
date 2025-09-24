@@ -1,0 +1,108 @@
+name: 05_03 Parallel Security Checks
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+  sca-trivy-fs:
+    name: SCA (Dependencies only)
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout OWASP Juice Shop source
+        uses: actions/checkout@v4
+        with:
+          repository: juice-shop/juice-shop
+          path: juice-shop-src
+          fetch-depth: 1
+      
+      - name: Setup Node (for lockfile generation only)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      
+      - name: Generate lockfile for SCA
+        working-directory: juice-shop-src
+        run: |
+          npm config set ignore-scripts true
+          npm install --package-lock-only
+      
+      - name: Trivy FS
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          scan-type: 'fs'
+          scan-ref: './juice-shop-src'
+          scanners: 'vuln'
+          vuln-type: 'library'     # dependency vulns only (SCA)
+          format: 'table'
+          exit-code: '0'           # flip to '1' to gate on HIGH/CRITICAL
+          severity: 'HIGH,CRITICAL'
+          list-all-pkgs: true
+          ignore-unfixed: true
+
+
+  image-scan-trivy:
+    name: Container Image Scan (Juice Shop)
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Scan public image
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          image-ref: 'bkimminich/juice-shop:latest'
+          vuln-type: 'os'  # base image + app deps
+          format: 'table'
+          exit-code: '0'           # set to '1' to enforce gating
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+
+  secrets-gitleaks:
+    name: Secrets Scan (Gitleaks on OWASP Juice Shop)
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      # Check out OWASP Juice Shop into a subfolder
+      - name: Checkout OWASP Juice Shop
+        uses: actions/checkout@v4
+        with:
+          repository: juice-shop/juice-shop
+          path: .
+          fetch-depth: 1
+
+      # Run the official action ONCE, from within that folder
+      # `continue-on-error: true` keeps the job green even if leaks are found
+      - name: Gitleaks (official action, allow pass on findings)
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+          
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [sca-trivy-fs, image-scan-trivy, secrets-gitleaks]
+    if: always()
+    steps:
+      - name: Write job summary
+        run: |
+          {
+            echo "# Parallel Security Checks — Summary"
+            echo
+            echo "| Job | Status |"
+            echo "|---|---|"
+            echo "| SCA (Dependencies only) | ${{ needs.sca-trivy-fs.result }} |"
+            echo "| Container Image Scan (Juice Shop) | ${{ needs.image-scan-trivy.result }} |"
+            echo "| Secrets Scan (Gitleaks) | ${{ needs.secrets-gitleaks.result }} |"
+            echo
+            echo "_Open each job’s log for details._"
+          } >> "$GITHUB_STEP_SUMMARY"

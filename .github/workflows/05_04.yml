@@ -1,0 +1,169 @@
+name: 05_04
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write  # needed to upload SARIF
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+  sca-trivy-fs:
+    name: SCA (Dependencies only)
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout OWASP Juice Shop source
+        uses: actions/checkout@v4
+        with:
+          repository: juice-shop/juice-shop
+          path: juice-shop-src
+          fetch-depth: 1
+      
+      - name: Setup Node (for lockfile generation only)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      
+      - name: Generate lockfile for SCA
+        working-directory: juice-shop-src
+        run: |
+          npm config set ignore-scripts true
+          npm install --package-lock-only
+      
+      - name: Trivy FS
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          scan-type: 'fs'
+          scan-ref: './juice-shop-src'
+          scanners: 'vuln'
+          vuln-type: 'library'     # dependency vulns only (SCA)
+          format: 'table'
+          exit-code: '0'           # flip to '1' to gate on HIGH/CRITICAL
+          severity: 'HIGH,CRITICAL'
+          list-all-pkgs: true
+          ignore-unfixed: true
+
+
+  image-scan-trivy:
+    name: Container Image Scan (Juice Shop)
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Scan public image
+        uses: aquasecurity/trivy-action@0.32.0
+        with:
+          image-ref: 'bkimminich/juice-shop:latest'
+          vuln-type: 'os'  # base image + app deps
+          format: 'table'
+          exit-code: '0'           # set to '1' to enforce gating
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+
+  secrets-gitleaks:
+    name: Secrets Scan (Gitleaks on OWASP Juice Shop)
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      # Check out OWASP Juice Shop into a subfolder
+      - name: Checkout OWASP Juice Shop
+        uses: actions/checkout@v4
+        with:
+          repository: juice-shop/juice-shop
+          path: .
+          fetch-depth: 1
+
+      # Run the official action ONCE, from within that folder
+      # `continue-on-error: true` keeps the job green even if leaks are found
+      - name: Gitleaks (official action, allow pass on findings)
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+  sbom-scan:
+    name: SBOM + Scan (Syft & Grype)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout OWASP Juice Shop source
+        uses: actions/checkout@v4
+        with:
+          repository: juice-shop/juice-shop
+          path: juice-shop-src
+          fetch-depth: 1
+
+      # 1) Syft via official action → CycloneDX SBOM file + artifact
+      - name: Syft SBOM (image → CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: bkimminich/juice-shop:latest
+          format: cyclonedx-json
+          output-file: juice-shop-image.sbom.cdx.json
+          upload-artifact: true
+          artifact-name: sbom-juice-shop-image-cyclonedx
+
+      # 2a) Grype via official action → SARIF file
+      - name: Grype scan of SBOM → SARIF
+        uses: anchore/scan-action@v6
+        with:
+          sbom: juice-shop-image.sbom.cdx.json
+          output-format: sarif
+          output-file: grype-from-sbom.sarif           # explicit file path
+          fail-build: false                            # keep demo green
+          severity-cutoff: high
+
+      # 2b) (optional) Grype again → JSON file + artifact
+      - name: Grype scan of SBOM → JSON
+        uses: anchore/scan-action@v6
+        with:
+          sbom: juice-shop-image.sbom.cdx.json
+          output-format: json
+          output-file: grype-scan-from-sbom.json
+          fail-build: false
+          severity-cutoff: high
+          add-cpes-if-none: true
+          by-cve: true
+
+      - name: Upload Grype JSON artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grype-scan-from-sbom.json
+          path: grype-scan-from-sbom.json
+          if-no-files-found: error
+      
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: grype-from-sbom.sarif 
+          category: grype-sbom
+          
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs:
+      - sca-trivy-fs
+      - image-scan-trivy
+      - secrets-gitleaks
+      - sbom-scan
+    if: always()
+    steps:
+      - name: Write job summary
+        run: |
+          {
+            echo "# Parallel Security Checks — Summary (05_04)"
+            echo
+            echo "| Job | Status |"
+            echo "|---|---|"
+            echo "| SCA (Dependencies only) | ${{ needs.sca-trivy-fs.result }} |"
+            echo "| Container Image Scan (Juice Shop) | ${{ needs.image-scan-trivy.result }} |"
+            echo "| Secrets Scan (Gitleaks) | ${{ needs.secrets-gitleaks.result }} |"
+            echo "| SBOM (Syft) + Grype | ${{ needs.sbom-scan.result }} |"
+            echo
+            echo "_Open each job’s logs for details._"
+          } >> "$GITHUB_STEP_SUMMARY"
