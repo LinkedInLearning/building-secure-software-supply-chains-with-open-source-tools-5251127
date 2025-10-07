@@ -5,7 +5,43 @@ Licensed under the LinkedIn Learning Exercise File License (the "License").
 See LICENSE in the project root for license information.
 
 ATTRIBUTIONS:
-[PLEASE PROVIDE ATTRIBUTIONS OR DELETE THIS AND THE ABOVE LINE “ATTRIBUTIONS”]
+
+--------------------
+gitleaks/gitleaks-action
+https://github.com/gitleaks/gitleaks-action
+License: MIT
+https://opensource.org/licenses/MIT
+--------------------
+aquasecurity/trivy-action
+https://github.com/aquasecurity/trivy-action
+License: Apache 2.0
+http://www.apache.org/licenses/
+--------------------
+actions/checkout
+https://github.com/actions/checkout
+License: MIT
+https://opensource.org/licenses/MIT
+--------------------
+actions/setup-node
+https://github.com/actions/setup-node
+License: MIT
+https://opensource.org/licenses/MIT
+--------------------
+actions/upload-artifact
+https://github.com/actions/upload-artifact
+License: MIT
+https://opensource.org/licenses/MIT
+--------------------
+anchore/sbom-action
+https://github.com/anchore/sbom-action
+License: Apache 2.0
+http://www.apache.org/licenses/
+--------------------
+anchore/scan-action
+https://github.com/anchore/scan-action
+License: Apache 2.0
+http://www.apache.org/licenses/
+--------------------
 
 Please note, this project may automatically load third party code from external 
 repositories (for example, NPM modules, Composer packages, or other dependencies). 
